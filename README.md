@@ -1,6 +1,6 @@
-# 🎨 Voice Palette
+# Voice Palette
 
-**Paste any text. Hear it in 5 distinct voices. Zero backend required.**
+**Compare all 6 OpenAI TTS voices side by side. Real neural TTS — no browser quirks.**
 
 Live: https://mvp.trollefsen.com/2026-04-14-voice-palette/
 
@@ -8,45 +8,54 @@ Live: https://mvp.trollefsen.com/2026-04-14-voice-palette/
 
 ## What it does
 
-Voice Palette lets you paste any text and instantly hear it read back through 5 carefully tuned speech personas using the browser's built-in Web Speech API. No server. No API keys. No installs beyond a modern browser.
+Voice Palette generates speech in all 6 OpenAI TTS voices simultaneously, so you can compare them directly on any input text. Pick a sample or type your own — then hit Generate All to hear how each voice handles it.
 
-## The 5 Personas
+## The 6 Voices
 
-| Persona | Vibe | Rate | Pitch |
-|---------|------|------|-------|
-| 🎙️ The Narrator | Slow, deep, measured — documentary voiceover | 0.75× | Low |
-| 🤖 The Robot | Flat pitch, staccato cadence — emotionless | 0.9× | Very low |
-| ⚡ The Auctioneer | Fast, high energy — sold! | 1.9× | High |
-| 🌙 The Whisper | Low volume, breathy — secrets | 0.85× | Normal |
-| ✨ The Valley Girl | Upbeat, high pitch — like, totally | 1.15× | Maximum |
+| Voice | Persona | Character |
+|-------|---------|-----------|
+| Alloy | The Narrator | Neutral, clear, versatile |
+| Echo | The Broadcaster | Warm, resonant, professional |
+| Fable | The Storyteller | Expressive, British warmth |
+| Onyx | The Authority | Deep, powerful, commanding |
+| Nova | The Guide | Bright, energetic, approachable |
+| Shimmer | The Empath | Soft, expressive, nuanced |
 
 ## Features
 
-- **Individual play** — click any card or its Play button to hear that persona
-- **Play All** — sequences through all 5 personas with a gap between each
-- **Stop** — kills speech instantly at any point
-- **Live animation** — active card pulses with a sound wave indicator
-- **Fully client-side** — zero backend, zero API keys, works offline
+- **Generate All** — fires all 6 voices in parallel, audio appears as each loads
+- **Per-voice generate** — regenerate individual voices without losing the others
+- **Progress bar** — live playback position per voice card
+- **Quality toggle** — Standard (`tts-1`) vs HD (`tts-1-hd`)
+- **Sample texts** — 4 presets covering narration, announcements, technical, conversational
+- **FastAPI backend** — real OpenAI TTS, not browser speech synthesis
 
 ## Tech Stack
 
 - React 19 + TypeScript
-- Vite
-- Tailwind CSS v4
-- Web Speech API (`window.speechSynthesis`)
+- Vite + Tailwind CSS v4
+- FastAPI + uvicorn
+- OpenAI TTS API (`tts-1` / `tts-1-hd`)
 
 ## Run locally
 
 ```bash
 git clone https://github.com/da-troll/voice-palette
 cd voice-palette
+
+# Backend
+pip install fastapi uvicorn openai
+# Set OPENAI_API_KEY or update backend/main.py
+uvicorn backend.main:app --port 8000
+
+# Frontend (dev mode, separate terminal)
 npm install
 npm run dev
 ```
 
 ## Browser support
 
-Requires a browser with Web Speech API support. Chrome and Edge work best — voice quality varies by OS and browser.
+Works in all modern browsers. Audio playback uses standard HTML5 `<audio>` — no browser TTS quirks.
 
 ---
 

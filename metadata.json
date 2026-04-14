@@ -1,18 +1,19 @@
 {
   "inspired_by": "OpenMOSS/MOSS-TTS-Nano",
   "project_name": "Voice Palette",
-  "description": "Paste any text and hear it read back in 5 distinct browser speech personas side by side. No backend, no API keys — pure Web Speech API.",
-  "tech_stack": ["React", "TypeScript", "Vite", "Tailwind CSS", "Web Speech API"],
+  "description": "Compare all 6 OpenAI TTS voices side by side. Enter any text, generate speech for each voice, play and compare. FastAPI backend, React frontend.",
+  "tech_stack": ["React", "TypeScript", "Vite", "Tailwind CSS", "FastAPI", "OpenAI TTS"],
   "build_date": "2026-04-14",
-  "build_time_hours": 0.75,
+  "build_time_hours": 1.5,
   "status": "complete",
   "features": [
-    "5 distinct voice personas: Narrator, Robot, Auctioneer, Whisper, Valley Girl",
-    "Play individual personas or sequence all 5 with Play All",
-    "Active card highlighting with sound wave animation",
-    "Stop button kills speech instantly",
-    "Fully client-side — zero backend, zero API keys",
-    "Dark mode UI with per-persona color theming"
+    "6 OpenAI TTS voices: Alloy, Echo, Fable, Onyx, Nova, Shimmer",
+    "Generate individual voices or all 6 in parallel",
+    "Audio playback with progress bar per voice",
+    "4 sample text presets (Narration, Announcement, Technical, Conversational)",
+    "Standard vs HD quality toggle",
+    "FastAPI backend — real neural TTS, no browser quirks",
+    "Dark UI with per-voice color theming"
   ],
   "live_url": "https://mvp.trollefsen.com/2026-04-14-voice-palette/",
   "github_url": "https://github.com/da-troll/voice-palette"
