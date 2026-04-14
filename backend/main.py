@@ -92,8 +92,9 @@ app.add_middleware(
 class TTSRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=1000)
     voice: Literal["alloy", "echo", "fable", "onyx", "nova", "shimmer"]
-    model: Literal["tts-1", "tts-1-hd"] = "tts-1"
+    model: Literal["tts-1", "tts-1-hd", "gpt-4o-mini-tts"] = "tts-1"
     speed: float = Field(default=1.0, ge=0.25, le=4.0)
+    instructions: str | None = Field(default=None, max_length=500)
 
 # ── Routes ───────────────────────────────────────────────────────────────────
 
@@ -110,13 +111,16 @@ async def text_to_speech(req: TTSRequest):
     try:
         api_key = get_openai_key()
         client = OpenAI(api_key=api_key)
-        response = client.audio.speech.create(
+        kwargs: dict = dict(
             model=req.model,
             voice=req.voice,
             input=req.text,
             speed=req.speed,
             response_format="mp3",
         )
+        if req.instructions and req.model == "gpt-4o-mini-tts":
+            kwargs["instructions"] = req.instructions
+        response = client.audio.speech.create(**kwargs)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

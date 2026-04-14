@@ -1,7 +1,9 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { Voice, VoiceCard } from './types';
+import type { TTSModel } from './api';
 import VoiceCardComponent from './VoiceCard';
 import { generateSpeech, fetchVoices } from './api';
+import HelpDialog from './HelpDialog';
 
 const SAMPLE_TEXTS = [
   {
@@ -22,13 +24,22 @@ const SAMPLE_TEXTS = [
   },
 ];
 
+const MODEL_OPTIONS: { value: TTSModel; label: string; description: string }[] = [
+  { value: 'tts-1', label: 'Standard (tts-1)', description: 'Low latency' },
+  { value: 'tts-1-hd', label: 'HD (tts-1-hd)', description: 'Higher quality' },
+  { value: 'gpt-4o-mini-tts', label: 'Mini TTS (gpt-4o-mini-tts)', description: 'Latest — supports voice instructions' },
+];
+
 export default function VoicePalette() {
   const [text, setText] = useState(SAMPLE_TEXTS[0].text);
-  const [model, setModel] = useState<'tts-1' | 'tts-1-hd'>('tts-1');
+  const [model, setModel] = useState<TTSModel>('tts-1');
+  const [speed, setSpeed] = useState(1.0);
+  const [instructions, setInstructions] = useState('');
   const [cards, setCards] = useState<VoiceCard[]>([]);
   const [activeVoice, setActiveVoice] = useState<string | null>(null);
   const [generatingAll, setGeneratingAll] = useState(false);
   const [charCount, setCharCount] = useState(SAMPLE_TEXTS[0].text.length);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   useEffect(() => {
     fetchVoices().then((data: { voices: Voice[] }) => {
@@ -59,7 +70,13 @@ export default function VoicePalette() {
     if (!text.trim()) return;
     updateCard(voiceId, { state: 'loading', error: null });
     try {
-      const url = await generateSpeech(text, voiceId, model);
+      const url = await generateSpeech({
+        text,
+        voiceId,
+        model,
+        speed,
+        instructions: instructions.trim() || undefined,
+      });
       const audio = new Audio(url);
       await new Promise<void>((resolve) => {
         audio.addEventListener('loadedmetadata', () => resolve(), { once: true });
@@ -73,7 +90,7 @@ export default function VoicePalette() {
     } catch (e) {
       updateCard(voiceId, { state: 'error', error: (e as Error).message });
     }
-  }, [text, model, updateCard]);
+  }, [text, model, speed, instructions, updateCard]);
 
   const handlePlay = useCallback((voiceId: string) => {
     if (activeVoice && activeVoice !== voiceId) {
@@ -98,6 +115,7 @@ export default function VoicePalette() {
 
   const loadingCount = cards.filter(c => c.state === 'loading').length;
   const readyCount = cards.filter(c => c.state === 'ready' || c.state === 'playing').length;
+  const isMiniTTS = model === 'gpt-4o-mini-tts';
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white">
@@ -108,16 +126,28 @@ export default function VoicePalette() {
             <h1 className="text-lg font-bold tracking-tight">Voice Palette</h1>
             <p className="text-xs text-zinc-500 mt-0.5">OpenAI TTS · 6 voices side by side</p>
           </div>
-          <div className="flex items-center gap-2">
-            <label className="text-xs text-zinc-500">Quality</label>
-            <select
-              value={model}
-              onChange={e => setModel(e.target.value as 'tts-1' | 'tts-1-hd')}
-              className="text-xs bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1 text-zinc-300 cursor-pointer focus:outline-none focus:ring-1 focus:ring-zinc-500"
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setHelpOpen(true)}
+              className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors cursor-pointer"
+              title="Tips & notation guide"
             >
-              <option value="tts-1">Standard</option>
-              <option value="tts-1-hd">HD</option>
-            </select>
+              <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM8.94 6.94a.75.75 0 11-1.061-1.061 3 3 0 112.871 5.026v.345a.75.75 0 01-1.5 0v-.5c0-.72.57-1.172 1.081-1.287A1.5 1.5 0 108.94 6.94zM10 15a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+              </svg>
+            </button>
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-zinc-500">Model</label>
+              <select
+                value={model}
+                onChange={e => setModel(e.target.value as TTSModel)}
+                className="text-xs bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1 text-zinc-300 cursor-pointer focus:outline-none focus:ring-1 focus:ring-zinc-500"
+              >
+                {MODEL_OPTIONS.map(m => (
+                  <option key={m.value} value={m.value}>{m.label}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
       </header>
@@ -155,6 +185,56 @@ export default function VoicePalette() {
             placeholder="Enter text to synthesize…"
             className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm text-zinc-200 placeholder-zinc-600 resize-none focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:border-transparent leading-relaxed"
           />
+        </section>
+
+        {/* Controls */}
+        <section className="flex flex-col gap-4 p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl">
+          {/* Speed slider — always visible */}
+          <div className="flex items-center gap-4">
+            <label className="text-xs text-zinc-400 w-12 shrink-0">Speed</label>
+            <input
+              type="range"
+              min="0.25"
+              max="4.0"
+              step="0.05"
+              value={speed}
+              onChange={e => setSpeed(parseFloat(e.target.value))}
+              className="flex-1 h-1 bg-zinc-700 rounded-full appearance-none cursor-pointer accent-zinc-400
+                [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3
+                [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-sm"
+            />
+            <span className="text-xs text-zinc-300 tabular-nums w-12 text-right">{speed.toFixed(2)}x</span>
+            {speed !== 1.0 && (
+              <button
+                onClick={() => setSpeed(1.0)}
+                className="text-[10px] text-zinc-500 hover:text-zinc-300 cursor-pointer"
+              >
+                Reset
+              </button>
+            )}
+          </div>
+
+          {/* Instructions — only for gpt-4o-mini-tts */}
+          {isMiniTTS && (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs text-zinc-400">
+                  Voice instructions
+                  <span className="ml-1.5 text-[10px] text-zinc-600">gpt-4o-mini-tts only</span>
+                </label>
+                <span className={`text-[10px] tabular-nums ${instructions.length > 450 ? 'text-amber-400' : 'text-zinc-600'}`}>
+                  {instructions.length}/500
+                </span>
+              </div>
+              <textarea
+                value={instructions}
+                onChange={e => { if (e.target.value.length <= 500) setInstructions(e.target.value); }}
+                rows={2}
+                placeholder="e.g. Speak with urgency and excitement, like a sports commentator calling a close finish…"
+                className="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-2 text-xs text-zinc-300 placeholder-zinc-600 resize-none focus:outline-none focus:ring-1 focus:ring-zinc-500 leading-relaxed"
+              />
+            </div>
+          )}
         </section>
 
         {/* Generate all */}
@@ -219,6 +299,8 @@ export default function VoicePalette() {
           <span>Powered by OpenAI TTS</span>
         </div>
       </footer>
+
+      {helpOpen && <HelpDialog onClose={() => setHelpOpen(false)} />}
     </div>
   );
 }
