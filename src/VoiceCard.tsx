@@ -39,9 +39,10 @@ interface Props {
   onPlay: () => void;
   onStop: () => void;
   isActive: boolean;
+  unavailable?: boolean;
 }
 
-export default function VoiceCard({ card, onGenerate, onPlay, onStop, isActive }: Props) {
+export default function VoiceCard({ card, onGenerate, onPlay, onStop, isActive, unavailable }: Props) {
   const { voice, state, audioUrl, error, duration } = card;
   const colors = COLOR_MAP[voice.color] ?? COLOR_MAP.blue;
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -98,11 +99,17 @@ export default function VoiceCard({ card, onGenerate, onPlay, onStop, isActive }
   return (
     <div
       className={`relative flex flex-col gap-3 rounded-xl border p-4 transition-all duration-200
+        ${unavailable ? 'opacity-40 pointer-events-none' : ''}
         ${colors.bg} ${colors.border}
         ${isActive ? `ring-2 ${colors.ring} shadow-lg shadow-black/30` : ''}
         ${isPlaying ? 'scale-[1.01]' : ''}
       `}
     >
+      {unavailable && (
+        <div className="absolute top-2 right-2 text-[9px] px-1.5 py-0.5 rounded-full bg-zinc-700/80 text-zinc-400">
+          mini-tts only
+        </div>
+      )}
       {/* Hidden audio element */}
       <audio ref={audioRef} preload="auto" />
 
