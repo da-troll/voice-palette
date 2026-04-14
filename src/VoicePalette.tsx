@@ -1,207 +1,224 @@
-import { useState, useEffect } from 'react'
-import { PERSONAS } from './personas'
-import { useSpeech } from './useSpeech'
+import { useState, useCallback, useEffect } from 'react';
+import type { Voice, VoiceCard } from './types';
+import VoiceCardComponent from './VoiceCard';
+import { generateSpeech, fetchVoices } from './api';
 
-const DEFAULT_TEXT = `In a world where every voice tells a different story, the words remain the same — only the soul behind them changes. Listen carefully. Which one speaks to you?`
-
-function SoundWave({ active }: { active: boolean }) {
-  return (
-    <div className="flex items-center gap-[3px] h-5">
-      {[1, 2, 3, 4, 5].map((i) => (
-        <div
-          key={i}
-          className={`w-[3px] rounded-full transition-all duration-150 ${
-            active
-              ? 'bg-white animate-pulse'
-              : 'bg-white/30'
-          }`}
-          style={{
-            height: active ? `${8 + ((i * 7) % 12)}px` : '4px',
-            animationDelay: `${i * 80}ms`,
-            animationDuration: `${400 + i * 60}ms`,
-          }}
-        />
-      ))}
-    </div>
-  )
-}
+const SAMPLE_TEXTS = [
+  {
+    label: 'Narration',
+    text: 'In the quiet hours before dawn, when the city holds its breath and the sky blushes with the faintest trace of light, there exists a moment of perfect stillness — brief, inevitable, and impossibly beautiful.',
+  },
+  {
+    label: 'Announcement',
+    text: 'Attention passengers: the 8:42 express to Central Station will be departing from Platform 3 in approximately five minutes. Please ensure all luggage is secured and move to the platform at your earliest convenience.',
+  },
+  {
+    label: 'Technical',
+    text: 'The transformer architecture relies on self-attention mechanisms to process sequential data in parallel — dramatically improving training efficiency over recurrent approaches.',
+  },
+  {
+    label: 'Conversational',
+    text: "Hey, so I've been thinking — what if we just build the thing first and figure out the design as we go? Shipping something imperfect is almost always better than shipping nothing at all.",
+  },
+];
 
 export default function VoicePalette() {
-  const [text, setText] = useState(DEFAULT_TEXT)
-  const [supported, setSupported] = useState(true)
-  const { state, speak, playAll, stop } = useSpeech()
-  const isPlaying = state.playing
+  const [text, setText] = useState(SAMPLE_TEXTS[0].text);
+  const [model, setModel] = useState<'tts-1' | 'tts-1-hd'>('tts-1');
+  const [cards, setCards] = useState<VoiceCard[]>([]);
+  const [activeVoice, setActiveVoice] = useState<string | null>(null);
+  const [generatingAll, setGeneratingAll] = useState(false);
+  const [charCount, setCharCount] = useState(SAMPLE_TEXTS[0].text.length);
 
   useEffect(() => {
-    if (!('speechSynthesis' in window)) {
-      setSupported(false)
-    }
-  }, [])
+    fetchVoices().then((data: { voices: Voice[] }) => {
+      setCards(
+        data.voices.map(v => ({
+          voice: v,
+          state: 'idle' as const,
+          audioUrl: null,
+          error: null,
+          duration: null,
+        })),
+      );
+    });
+  }, []);
 
-  const handlePlayPersona = (personaId: string) => {
-    const persona = PERSONAS.find((p) => p.id === personaId)!
-    if (state.playing && state.personaId === personaId) {
-      stop()
-    } else {
-      speak(text, persona)
-    }
-  }
+  const updateCard = useCallback((voiceId: string, patch: Partial<VoiceCard>) => {
+    setCards(prev => prev.map(c => c.voice.id === voiceId ? { ...c, ...patch } : c));
+  }, []);
 
-  const handlePlayAll = () => {
-    if (isPlaying) {
-      stop()
-    } else {
-      playAll(text, PERSONAS)
+  const handleTextChange = (val: string) => {
+    if (val.length <= 1000) {
+      setText(val);
+      setCharCount(val.length);
     }
-  }
+  };
+
+  const generateForVoice = useCallback(async (voiceId: string) => {
+    if (!text.trim()) return;
+    updateCard(voiceId, { state: 'loading', error: null });
+    try {
+      const url = await generateSpeech(text, voiceId, model);
+      const audio = new Audio(url);
+      await new Promise<void>((resolve) => {
+        audio.addEventListener('loadedmetadata', () => resolve(), { once: true });
+        audio.addEventListener('error', () => resolve(), { once: true });
+      });
+      updateCard(voiceId, {
+        state: 'ready',
+        audioUrl: url,
+        duration: isFinite(audio.duration) ? audio.duration : null,
+      });
+    } catch (e) {
+      updateCard(voiceId, { state: 'error', error: (e as Error).message });
+    }
+  }, [text, model, updateCard]);
+
+  const handlePlay = useCallback((voiceId: string) => {
+    if (activeVoice && activeVoice !== voiceId) {
+      updateCard(activeVoice, { state: 'ready' });
+    }
+    setActiveVoice(voiceId);
+    updateCard(voiceId, { state: 'playing' });
+  }, [activeVoice, updateCard]);
+
+  const handleStop = useCallback((voiceId: string) => {
+    updateCard(voiceId, { state: 'ready' });
+    if (activeVoice === voiceId) setActiveVoice(null);
+  }, [activeVoice, updateCard]);
+
+  const generateAll = useCallback(async () => {
+    if (!text.trim() || generatingAll) return;
+    setGeneratingAll(true);
+    const voiceIds = cards.map(c => c.voice.id);
+    await Promise.all(voiceIds.map(id => generateForVoice(id)));
+    setGeneratingAll(false);
+  }, [text, cards, generateForVoice, generatingAll]);
+
+  const loadingCount = cards.filter(c => c.state === 'loading').length;
+  const readyCount = cards.filter(c => c.state === 'ready' || c.state === 'playing').length;
 
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100 flex flex-col">
+    <div className="min-h-screen bg-zinc-950 text-white">
       {/* Header */}
-      <header className="border-b border-gray-800 px-6 py-5">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="text-2xl">🎨</span>
-            <div>
-              <h1 className="text-xl font-bold tracking-tight text-white">Voice Palette</h1>
-              <p className="text-xs text-gray-500">5 personas. One text. Endless character.</p>
-            </div>
+      <header className="border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-sm sticky top-0 z-10">
+        <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
+          <div>
+            <h1 className="text-lg font-bold tracking-tight">Voice Palette</h1>
+            <p className="text-xs text-zinc-500 mt-0.5">OpenAI TTS · 6 voices side by side</p>
           </div>
-          <span className="text-xs text-gray-600 hidden sm:block">Powered by Web Speech API</span>
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-zinc-500">Quality</label>
+            <select
+              value={model}
+              onChange={e => setModel(e.target.value as 'tts-1' | 'tts-1-hd')}
+              className="text-xs bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1 text-zinc-300 cursor-pointer focus:outline-none focus:ring-1 focus:ring-zinc-500"
+            >
+              <option value="tts-1">Standard</option>
+              <option value="tts-1-hd">HD</option>
+            </select>
+          </div>
         </div>
       </header>
 
-      <main className="flex-1 max-w-4xl mx-auto w-full px-6 py-8 flex flex-col gap-8">
-        {!supported && (
-          <div className="bg-red-950/50 border border-red-800 rounded-xl p-4 text-red-300 text-sm">
-            ⚠️ Your browser doesn't support the Web Speech API. Try Chrome or Edge.
-          </div>
-        )}
-
+      <main className="max-w-5xl mx-auto px-4 py-6 space-y-6">
         {/* Text input */}
-        <div className="flex flex-col gap-3">
-          <label className="text-sm font-medium text-gray-400 uppercase tracking-wider">
-            Your text
-          </label>
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium text-zinc-300">Input text</label>
+            <span className={`text-xs tabular-nums ${charCount > 900 ? 'text-amber-400' : 'text-zinc-500'}`}>
+              {charCount}/1000
+            </span>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {SAMPLE_TEXTS.map(s => (
+              <button
+                key={s.label}
+                onClick={() => handleTextChange(s.text)}
+                className={`text-xs px-3 py-1 rounded-full border transition-colors cursor-pointer
+                  ${text === s.text
+                    ? 'bg-zinc-700 border-zinc-500 text-white'
+                    : 'bg-transparent border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-300'
+                  }`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+
           <textarea
             value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Paste or type anything here..."
+            onChange={e => handleTextChange(e.target.value)}
             rows={4}
-            className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-gray-100 placeholder-gray-600 resize-y focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50 text-base leading-relaxed transition-colors"
+            placeholder="Enter text to synthesize…"
+            className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm text-zinc-200 placeholder-zinc-600 resize-none focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:border-transparent leading-relaxed"
           />
-          <div className="flex justify-between items-center">
-            <span className="text-xs text-gray-600">{text.length} characters</span>
-            <button
-              onClick={() => setText('')}
-              className="text-xs text-gray-600 hover:text-gray-400 transition-colors"
-            >
-              Clear
-            </button>
-          </div>
-        </div>
+        </section>
 
-        {/* Play All button */}
-        <div className="flex items-center gap-4">
+        {/* Generate all */}
+        <div className="flex items-center justify-between">
+          <div className="text-xs text-zinc-500">
+            {readyCount > 0 && (
+              <span>{readyCount} of {cards.length} voices ready</span>
+            )}
+          </div>
           <button
-            onClick={handlePlayAll}
-            disabled={!supported || !text.trim()}
-            className={`flex items-center gap-3 px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed ${
-              isPlaying
-                ? 'bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-500/30'
-                : 'bg-violet-600 hover:bg-violet-500 text-white shadow-lg shadow-violet-500/30 hover:shadow-violet-500/50'
-            }`}
+            onClick={generateAll}
+            disabled={generatingAll || !text.trim()}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all cursor-pointer
+              ${generatingAll || !text.trim()
+                ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
+                : 'bg-white text-zinc-950 hover:bg-zinc-100 shadow-sm'
+              }`}
           >
-            {isPlaying ? (
+            {generatingAll ? (
               <>
-                <span>⏹</span>
-                Stop
+                <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Generating {loadingCount} remaining…
               </>
             ) : (
               <>
-                <span>▶</span>
-                Play All Personas
+                <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                </svg>
+                Generate All 6 Voices
               </>
             )}
           </button>
-          {isPlaying && state.personaId && (
-            <span className="text-sm text-gray-400">
-              Playing: <span className="text-violet-400 font-medium">
-                {PERSONAS.find((p) => p.id === state.personaId)?.name}
-              </span>
-            </span>
-          )}
         </div>
 
-        {/* Persona cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {PERSONAS.map((persona) => {
-            const isActive = state.playing && state.personaId === persona.id
-            return (
-              <div
-                key={persona.id}
-                className={`relative rounded-2xl p-5 flex flex-col gap-4 transition-all duration-300 cursor-pointer select-none
-                  bg-gradient-to-br ${persona.color}
-                  border ${isActive ? 'border-white/30' : 'border-white/10'}
-                  ${isActive ? `shadow-xl ${persona.glowColor} shadow-lg scale-[1.02]` : 'hover:scale-[1.01] hover:border-white/20'}
-                `}
-                onClick={() => handlePlayPersona(persona.id)}
-              >
-                {/* Active pulse ring */}
-                {isActive && (
-                  <div className="absolute inset-0 rounded-2xl animate-ping border border-white/20 pointer-events-none" />
-                )}
-
-                <div className="flex items-start justify-between">
-                  <div className="flex flex-col gap-1">
-                    <span className="text-2xl">{persona.emoji}</span>
-                    <h2 className="text-lg font-bold text-white tracking-tight">{persona.name}</h2>
-                  </div>
-                  <SoundWave active={isActive} />
-                </div>
-
-                <p className="text-sm text-white/60 leading-relaxed">{persona.vibe}</p>
-
-                <div className="flex items-center gap-3 pt-1">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handlePlayPersona(persona.id) }}
-                    disabled={!supported || !text.trim()}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed
-                      ${isActive
-                        ? 'bg-white/20 hover:bg-white/30 text-white'
-                        : 'bg-white/10 hover:bg-white/20 text-white/80 hover:text-white'
-                      }`}
-                  >
-                    {isActive ? <>⏹ Stop</> : <>▶ Play</>}
-                  </button>
-                  <div className="flex flex-col gap-1 text-right">
-                    <span className="text-[10px] text-white/40 uppercase tracking-wider">rate</span>
-                    <span className="text-xs text-white/60 font-mono">{persona.settings.rate}×</span>
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-
-        {/* Info strip */}
-        <div className="border-t border-gray-800 pt-6 grid grid-cols-3 gap-4 text-center">
-          {[
-            { label: 'Personas', value: '5' },
-            { label: 'Backend', value: 'None' },
-            { label: 'API Keys', value: '0' },
-          ].map(({ label, value }) => (
-            <div key={label} className="flex flex-col gap-1">
-              <span className="text-2xl font-bold text-violet-400">{value}</span>
-              <span className="text-xs text-gray-600 uppercase tracking-wider">{label}</span>
-            </div>
-          ))}
-        </div>
+        {/* Voice cards grid */}
+        {cards.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {cards.map(card => (
+              <VoiceCardComponent
+                key={card.voice.id}
+                card={card}
+                isActive={activeVoice === card.voice.id || card.state === 'playing'}
+                onGenerate={() => generateForVoice(card.voice.id)}
+                onPlay={() => handlePlay(card.voice.id)}
+                onStop={() => handleStop(card.voice.id)}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="flex items-center justify-center h-32 text-zinc-600 text-sm">
+            Loading voices…
+          </div>
+        )}
       </main>
 
-      <footer className="border-t border-gray-800 px-6 py-4 text-center text-xs text-gray-700">
-        Built by the Nightly MVP Builder · {new Date().getFullYear()}
+      <footer className="border-t border-zinc-800 mt-12">
+        <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between text-xs text-zinc-600">
+          <span>Voice Palette · Nightly MVP · 2026-04-14</span>
+          <span>Powered by OpenAI TTS</span>
+        </div>
       </footer>
     </div>
-  )
+  );
 }
