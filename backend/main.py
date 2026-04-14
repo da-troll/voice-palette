@@ -24,54 +24,19 @@ def get_openai_key() -> str:
 
 
 VOICES = [
-    {
-        "id": "alloy",
-        "name": "Alloy",
-        "persona": "The Narrator",
-        "description": "Neutral, clear, and authoritative. Versatile across all content types.",
-        "tags": ["balanced", "clear", "versatile"],
-        "color": "blue",
-    },
-    {
-        "id": "echo",
-        "name": "Echo",
-        "persona": "The Broadcaster",
-        "description": "Warm, resonant, and measured. Built for professional delivery.",
-        "tags": ["warm", "resonant", "professional"],
-        "color": "violet",
-    },
-    {
-        "id": "fable",
-        "name": "Fable",
-        "persona": "The Storyteller",
-        "description": "Expressive with a British warmth. Draws you in for the long haul.",
-        "tags": ["expressive", "british", "engaging"],
-        "color": "amber",
-    },
-    {
-        "id": "onyx",
-        "name": "Onyx",
-        "persona": "The Authority",
-        "description": "Deep, powerful, commanding. Every word lands with weight.",
-        "tags": ["deep", "powerful", "dramatic"],
-        "color": "zinc",
-    },
-    {
-        "id": "nova",
-        "name": "Nova",
-        "persona": "The Guide",
-        "description": "Bright, energetic, approachable. Perfect for instructional content.",
-        "tags": ["bright", "energetic", "friendly"],
-        "color": "emerald",
-    },
-    {
-        "id": "shimmer",
-        "name": "Shimmer",
-        "persona": "The Empath",
-        "description": "Soft, expressive, nuanced. Carries emotional depth in every line.",
-        "tags": ["soft", "expressive", "emotive"],
-        "color": "rose",
-    },
+    {"id": "alloy",   "name": "Alloy",   "persona": "The Narrator",    "description": "Neutral, clear, and authoritative. Versatile across all content types.", "tags": ["balanced", "clear", "versatile"], "color": "blue"},
+    {"id": "ash",     "name": "Ash",     "persona": "The Anchor",      "description": "Confident and steady. A grounded, trustworthy presence.",               "tags": ["confident", "steady", "grounded"], "color": "slate"},
+    {"id": "ballad",  "name": "Ballad",  "persona": "The Poet",        "description": "Melodic and flowing. Carries rhythm in every phrase.",                  "tags": ["melodic", "flowing", "lyrical"], "color": "indigo"},
+    {"id": "coral",   "name": "Coral",   "persona": "The Companion",   "description": "Warm, friendly, and approachable. Like talking to a close friend.",    "tags": ["warm", "friendly", "natural"], "color": "orange"},
+    {"id": "echo",    "name": "Echo",    "persona": "The Broadcaster",  "description": "Warm, resonant, and measured. Built for professional delivery.",       "tags": ["warm", "resonant", "professional"], "color": "violet"},
+    {"id": "fable",   "name": "Fable",   "persona": "The Storyteller",  "description": "Expressive with a British warmth. Draws you in for the long haul.",   "tags": ["expressive", "british", "engaging"], "color": "amber"},
+    {"id": "marin",   "name": "Marin",   "persona": "The Calm",        "description": "Smooth and serene. A soothing voice for focused listening.",           "tags": ["smooth", "serene", "soothing"], "color": "sky"},
+    {"id": "nova",    "name": "Nova",    "persona": "The Guide",        "description": "Bright, energetic, approachable. Perfect for instructional content.",  "tags": ["bright", "energetic", "friendly"], "color": "emerald"},
+    {"id": "onyx",    "name": "Onyx",    "persona": "The Authority",    "description": "Deep, powerful, commanding. Every word lands with weight.",            "tags": ["deep", "powerful", "dramatic"], "color": "zinc"},
+    {"id": "sage",    "name": "Sage",    "persona": "The Scholar",      "description": "Thoughtful and precise. Measured delivery with quiet confidence.",     "tags": ["thoughtful", "precise", "calm"], "color": "teal"},
+    {"id": "shimmer", "name": "Shimmer", "persona": "The Empath",       "description": "Soft, expressive, nuanced. Carries emotional depth in every line.",   "tags": ["soft", "expressive", "emotive"], "color": "rose"},
+    {"id": "verse",   "name": "Verse",   "persona": "The Performer",    "description": "Dynamic and theatrical. Commands attention with flair.",               "tags": ["dynamic", "theatrical", "bold"], "color": "fuchsia"},
+    {"id": "cedar",   "name": "Cedar",   "persona": "The Elder",        "description": "Rich and warm. A deep, seasoned voice with gravitas.",                "tags": ["rich", "warm", "seasoned"], "color": "stone"},
 ]
 
 VOICE_IDS = {v["id"] for v in VOICES}
@@ -91,7 +56,7 @@ app.add_middleware(
 
 class TTSRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=1000)
-    voice: Literal["alloy", "echo", "fable", "onyx", "nova", "shimmer"]
+    voice: Literal["alloy", "ash", "ballad", "coral", "echo", "fable", "marin", "nova", "onyx", "sage", "shimmer", "verse", "cedar"]
     model: Literal["tts-1", "tts-1-hd", "gpt-4o-mini-tts"] = "tts-1"
     speed: float = Field(default=1.0, ge=0.25, le=4.0)
     instructions: str | None = Field(default=None, max_length=500)
@@ -105,6 +70,9 @@ def list_voices():
 
 @app.post("/api/tts")
 async def text_to_speech(req: TTSRequest):
+    import sys
+    print(f"[TTS] model={req.model} voice={req.voice} speed={req.speed} instructions={req.instructions!r}", file=sys.stderr)
+
     if req.voice not in VOICE_IDS:
         raise HTTPException(status_code=400, detail=f"Unknown voice: {req.voice}")
 

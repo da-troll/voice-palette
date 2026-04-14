@@ -46,6 +46,10 @@ export default function HelpDialog({ onClose }: Props) {
                   Most capable model. Supports <strong className="text-zinc-200">voice instructions</strong> —
                   a free-form text prompt that controls emotion, tone, pacing, accent, and delivery style.
                 </p>
+                <p className="text-[11px] text-amber-400/80 mt-1">
+                  Note: as of early 2026, OpenAI has a known bug where instructions may be ignored.
+                  Speed parameter is also not respected by this model.
+                </p>
               </div>
             </div>
           </section>
