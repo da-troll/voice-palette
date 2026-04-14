@@ -2,21 +2,35 @@ import { useRef, useEffect, useState } from 'react';
 import type { VoiceCard as VoiceCardType } from './types';
 
 const COLOR_MAP: Record<string, { bg: string; border: string; badge: string; ring: string; icon: string }> = {
-  blue:    { bg: 'bg-blue-950/40',   border: 'border-blue-700/50',   badge: 'bg-blue-900/60 text-blue-300',   ring: 'ring-blue-500',   icon: 'text-blue-400' },
-  violet:  { bg: 'bg-violet-950/40', border: 'border-violet-700/50', badge: 'bg-violet-900/60 text-violet-300', ring: 'ring-violet-500', icon: 'text-violet-400' },
-  amber:   { bg: 'bg-amber-950/40',  border: 'border-amber-700/50',  badge: 'bg-amber-900/60 text-amber-300',  ring: 'ring-amber-500',  icon: 'text-amber-400' },
-  zinc:    { bg: 'bg-zinc-800/60',   border: 'border-zinc-600/50',   badge: 'bg-zinc-700/60 text-zinc-300',   ring: 'ring-zinc-400',   icon: 'text-zinc-400' },
-  emerald: { bg: 'bg-emerald-950/40',border: 'border-emerald-700/50',badge: 'bg-emerald-900/60 text-emerald-300',ring: 'ring-emerald-500',icon: 'text-emerald-400' },
-  rose:    { bg: 'bg-rose-950/40',   border: 'border-rose-700/50',   badge: 'bg-rose-900/60 text-rose-300',   ring: 'ring-rose-500',   icon: 'text-rose-400' },
+  blue:    { bg: 'bg-blue-950/40',    border: 'border-blue-700/50',    badge: 'bg-blue-900/60 text-blue-300',    ring: 'ring-blue-500',    icon: 'text-blue-400' },
+  slate:   { bg: 'bg-slate-900/50',   border: 'border-slate-600/50',   badge: 'bg-slate-800/60 text-slate-300',  ring: 'ring-slate-400',   icon: 'text-slate-400' },
+  indigo:  { bg: 'bg-indigo-950/40',  border: 'border-indigo-700/50',  badge: 'bg-indigo-900/60 text-indigo-300',ring: 'ring-indigo-500',  icon: 'text-indigo-400' },
+  orange:  { bg: 'bg-orange-950/40',  border: 'border-orange-700/50',  badge: 'bg-orange-900/60 text-orange-300',ring: 'ring-orange-500',  icon: 'text-orange-400' },
+  violet:  { bg: 'bg-violet-950/40',  border: 'border-violet-700/50',  badge: 'bg-violet-900/60 text-violet-300',ring: 'ring-violet-500',  icon: 'text-violet-400' },
+  amber:   { bg: 'bg-amber-950/40',   border: 'border-amber-700/50',   badge: 'bg-amber-900/60 text-amber-300',  ring: 'ring-amber-500',   icon: 'text-amber-400' },
+  sky:     { bg: 'bg-sky-950/40',     border: 'border-sky-700/50',     badge: 'bg-sky-900/60 text-sky-300',      ring: 'ring-sky-500',     icon: 'text-sky-400' },
+  emerald: { bg: 'bg-emerald-950/40', border: 'border-emerald-700/50', badge: 'bg-emerald-900/60 text-emerald-300',ring: 'ring-emerald-500',icon: 'text-emerald-400' },
+  zinc:    { bg: 'bg-zinc-800/60',    border: 'border-zinc-600/50',    badge: 'bg-zinc-700/60 text-zinc-300',    ring: 'ring-zinc-400',    icon: 'text-zinc-400' },
+  teal:    { bg: 'bg-teal-950/40',    border: 'border-teal-700/50',    badge: 'bg-teal-900/60 text-teal-300',    ring: 'ring-teal-500',    icon: 'text-teal-400' },
+  rose:    { bg: 'bg-rose-950/40',    border: 'border-rose-700/50',    badge: 'bg-rose-900/60 text-rose-300',    ring: 'ring-rose-500',    icon: 'text-rose-400' },
+  fuchsia: { bg: 'bg-fuchsia-950/40', border: 'border-fuchsia-700/50', badge: 'bg-fuchsia-900/60 text-fuchsia-300',ring: 'ring-fuchsia-500',icon: 'text-fuchsia-400' },
+  stone:   { bg: 'bg-stone-900/50',   border: 'border-stone-600/50',   badge: 'bg-stone-800/60 text-stone-300',  ring: 'ring-stone-400',   icon: 'text-stone-400' },
 };
 
 const ICONS: Record<string, string> = {
   alloy:   '◈',
+  ash:     '△',
+  ballad:  '♪',
+  coral:   '◉',
   echo:    '◎',
   fable:   '◇',
-  onyx:    '▲',
+  marin:   '〰',
   nova:    '✦',
+  onyx:    '▲',
+  sage:    '◆',
   shimmer: '❋',
+  verse:   '✧',
+  cedar:   '▣',
 };
 
 interface Props {
