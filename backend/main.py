@@ -12,9 +12,12 @@ from pydantic import BaseModel, Field
 
 # ── Config ──────────────────────────────────────────────────────────────────
 
-HOUSEHOLD_JSON = Path("/home/eve/config/household.json")
+HOUSEHOLD_JSON = Path(os.environ.get("HOUSEHOLD_CONFIG", "/home/eve/config/household.json"))
 
 def get_openai_key() -> str:
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if api_key:
+        return api_key
     with open(HOUSEHOLD_JSON) as f:
         cfg = json.load(f)
     key = cfg.get("skills", {}).get("apiKeys", {}).get("openai_whisper")
